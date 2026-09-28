@@ -1,0 +1,24 @@
+{
+  "products": [
+    { "id": 1, "name": "UNIGATE PY600 Привод откатных ворот", "price": 14000 },
+    { "id": 2, "name": "UNIGATE PY1000 Привод откатных ворот", "price": 20000 },
+    { "id": 3, "name": "UNIGATE SMART 300 Привод распашных ворот", "price": 23000 },
+    { "id": 4, "name": "Сигнальная лампа", "price": 1200 },
+    { "id": 5, "name": "Фотоэлементы", "price": 800 },
+    { "id": 6, "name": "Пульт UNIGATE", "price": 1000 },
+    { "id": 7, "name": "Т-ПРОФИЛЬ, стенка 2 мм, длина 6м.", "price": 3300 },
+    { "id": 8, "name": "UNIGATE BASIC Комплект 5 м до 500 кг", "price": 10000 },
+    { "id": 9, "name": "UNIGATE BASIC Комплект 6 м до 500 кг", "price": 11000 },
+    { "id": 10, "name": "UNIGATE BASIC Комплект 7 м до 500 кг", "price": 12000 },
+    { "id": 11, "name": "UNIGATE PRO Комплект 5 м до 500 кг", "price": 11000 },
+    { "id": 12, "name": "UNIGATE PRO Комплект 6 м до 500 кг", "price": 12000 },
+    { "id": 13, "name": "UNIGATE PRO Комплект 7 м до 500 кг", "price": 13000 },
+    { "id": 14, "name": "Балка UNIGATE 5 м", "price": 7000 },
+    { "id": 15, "name": "Балка UNIGATE 6 м", "price": 8000 },
+    { "id": 16, "name": "Балка UNIGATE 7 м", "price": 9000 },
+    { "id": 17, "name": "Зубчатая рейка сталь 8мм 1м", "price": 600 },
+    { "id": 18, "name": "Подставка регулировочная, комплект 2шт.", "price": 1500 },
+    { "id": 19, "name": "Роликовая опора UNIGATE", "price": 2800 },
+    { "id": 20, "name": "Ролик верхний усиленный", "price": 1500 }
+  ]
+}

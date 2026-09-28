@@ -2,134 +2,220 @@ import React, { useState, useEffect } from 'react';
 import pdfMake from 'pdfmake/build/pdfmake';
 import * as pdfFonts from 'pdfmake/build/vfs_fonts';
 
-// Подключаем встроенные шрифты (включают Roboto с кириллицей)
 pdfMake.vfs = pdfFonts.default?.pdfMake?.vfs || pdfFonts.pdfMake?.vfs || pdfFonts;
 
-const availableProducts = [
-  { id: 1, name: 'Привод откатных ворот UNIGATE PY600', price: 12000 },
-  { id: 2, name: 'Привод откатных ворот UNIGATE PY1000', price: 19000 },
-  { id: 3, name: 'Привод распашных ворот UNIGATE SMART 300', price: 22000 },
-  { id: 4, name: 'Комплект UNIGATE BASIC 5 м до 500 кг', price: 9000 },
-  { id: 5, name: 'Комплект UNIGATE PRO 5 м до 500 кг (с пласт накл)', price: 10000 },
-  { id: 6, name: 'Комплект UNIGATE BASIC 6 м до 500 кг', price: 10000 },
-  { id: 7, name: 'Комплект UNIGATE PRO 6 м до 500 кг (с пласт накл)', price: 11000 },
-  { id: 8, name: 'Комплект UNIGATE BASIC 7 м до 500 кг', price: 11000 },
-  { id: 9, name: 'Комплект UNIGATE PRO 7 м до 500 кг (с пласт накл)', price: 12000 },
-  { id: 10, name: 'Роликовая опора UNIGATE', price: 2800 },
-  { id: 11, name: 'Заготовка для самостоятельной сварки (под балку 6м)', price: 20000 },
-  { id: 12, name: 'Заготовка для самостоятельной сварки (под балку 7м)', price: 23000 },
-  { id: 13, name: 'Балка направляющая 5 метров', price: 7000 },
-  { id: 14, name: 'Балка направляющая 6 метров', price: 8000 },
-  { id: 15, name: 'Балка направляющая 7 метров', price: 9000 },
-  { id: 16, name: 'Комплект удерживающих роликов верхний', price: 1500 },
-  { id: 17, name: 'Подставка регулировочная, комплект 2шт.', price: 1500 },
-  { id: 18, name: 'Т-профиль, стенка 2 мм, длина 6м.', price: 3000 },
-  { id: 19, name: 'Зубчатая рейка 1м (металл, 8мм, крепеж в комплекте)', price: 600 },
-  { id: 20, name: 'Сигнальная лампа + Фотоэлементы (комплект)', price: 2000 },
-  { id: 21, name: 'Сигнальная лампа', price: 1 },
-  { id: 22, name: 'Фотоэлементы', price: 1 },
-  { id: 23, name: 'Пульт, 1шт.', price: 1000 },
+const GOOGLE_SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRuBlm-QRkDKtS9MY9lhapbhc0f7cvmYGVIDSaGiejLiGSZOeBIVU2vbeSWJNKaiX6FBKMKlKYfuFIf/pub?gid=0&single=true&output=csv';
+
+const FALLBACK_PRODUCTS = [
+  { id: 1, name: 'UNIGATE PY600 Привод откатных ворот', price: 14000 },
+  { id: 2, name: 'UNIGATE PY1000 Привод откатных ворот', price: 20000 },
+  { id: 3, name: 'UNIGATE SMART 300 Привод распашных ворот', price: 23000 },
+  { id: 4, name: 'Сигнальная лампа', price: 1200 },
+  { id: 5, name: 'Фотоэлементы', price: 800 },
+  { id: 6, name: 'Пульт UNIGATE', price: 1000 },
+  { id: 7, name: 'Т-ПРОФИЛЬ, стенка 2 мм, длина 6м.', price: 3300 },
+  { id: 8, name: 'UNIGATE BASIC Комплект 5 м до 500 кг', price: 10000 },
+  { id: 9, name: 'UNIGATE BASIC Комплект 6 м до 500 кг', price: 11000 },
+  { id: 10, name: 'UNIGATE BASIC Комплект 7 м до 500 кг', price: 12000 },
+  { id: 11, name: 'UNIGATE PRO Комплект 5 м до 500 кг', price: 11000 },
+  { id: 12, name: 'UNIGATE PRO Комплект 6 м до 500 кг', price: 12000 },
+  { id: 13, name: 'UNIGATE PRO Комплект 7 м до 500 кг', price: 13000 },
+  { id: 14, name: 'Балка UNIGATE 5 м', price: 7000 },
+  { id: 15, name: 'Балка UNIGATE 6 м', price: 8000 },
+  { id: 16, name: 'Балка UNIGATE 7 м', price: 9000 },
+  { id: 17, name: 'Зубчатая рейка сталь 8мм 1м', price: 600 },
+  { id: 18, name: 'Подставка регулировочная, комплект 2шт.', price: 1500 },
+  { id: 19, name: 'Роликовая опора UNIGATE', price: 2800 },
+  { id: 20, name: 'Ролик верхний усиленный', price: 1500 },
 ];
 
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (inQuotes) {
+      if (char === '"' && next === '"') {
+        cell += '"';
+        i++;
+      } else if (char === '"') {
+        inQuotes = false;
+      } else {
+        cell += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ',') {
+        row.push(cell);
+        cell = '';
+      } else if (char === '\n' || char === '\r') {
+        if (char === '\r' && next === '\n') i++;
+        row.push(cell);
+        if (row.some(c => c.trim() !== '')) rows.push(row);
+        row = [];
+        cell = '';
+      } else {
+        cell += char;
+      }
+    }
+  }
+  if (cell !== '' || row.length > 0) {
+    row.push(cell);
+    if (row.some(c => c.trim() !== '')) rows.push(row);
+  }
+
+  return rows;
+}
+
 export default function App() {
-  const [cart, setCart] = useState(() => {
+  const [catalog, setCatalog] = useState(() => {
     try {
-      const saved = localStorage.getItem('cart');
-      return saved ? JSON.parse(saved) : [];
+      const cached = localStorage.getItem('catalog_cache');
+      if (cached) return JSON.parse(cached);
+    } catch {}
+    return FALLBACK_PRODUCTS;
+  });
+
+  const [quantities, setQuantities] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('quantities') || '{}');
     } catch {
-      return [];
+      return {};
     }
   });
 
-  const [selectedProduct, setSelectedProduct] = useState(availableProducts[0]);
-  const [quantity, setQuantity] = useState(1);
-  const [notification, setNotification] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [lastSync, setLastSync] = useState(() => {
+    return localStorage.getItem('catalog_last_sync') || null;
+  });
+  const [syncStatus, setSyncStatus] = useState(null);
+  const [syncMessage, setSyncMessage] = useState('');
+
+  const fetchCatalog = async () => {
+    if (!GOOGLE_SHEETS_CSV_URL) {
+      setSyncStatus('error');
+      setSyncMessage('URL Google Таблицы не настроен — используется каталог из кода');
+      return;
+    }
+
+    setLoadingCatalog(true);
+    setSyncStatus(null);
+    setSyncMessage('');
+
+    try {
+      const separator = GOOGLE_SHEETS_CSV_URL.includes('?') ? '&' : '?';
+      const url = `${GOOGLE_SHEETS_CSV_URL}${separator}t=${Date.now()}`;
+
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const csvText = await response.text();
+      const rows = parseCSV(csvText);
+
+      if (rows.length === 0) throw new Error('Таблица пуста');
+
+      let dataRows = rows;
+      const firstPrice = parseInt(String(rows[0]?.[1] || '').replace(/\D/g, ''), 10);
+      if (isNaN(firstPrice)) {
+        dataRows = rows.slice(1);
+      }
+
+      const products = dataRows
+        .map((row, i) => {
+          const name = (row[0] || '').trim();
+          const priceRaw = (row[1] || '').trim();
+          const price = parseInt(priceRaw.replace(/[^\d]/g, ''), 10);
+          if (!name || isNaN(price) || price < 0) return null;
+          return { id: i + 1, name, price };
+        })
+        .filter(Boolean);
+
+      if (products.length === 0) throw new Error('В таблице нет валидных строк');
+
+      setCatalog(products);
+      localStorage.setItem('catalog_cache', JSON.stringify(products));
+      const now = new Date().toISOString();
+      localStorage.setItem('catalog_last_sync', now);
+      setLastSync(now);
+      setSyncStatus('success');
+      setSyncMessage(`Загружено товаров: ${products.length}`);
+      setTimeout(() => {
+        setSyncStatus(null);
+        setSyncMessage('');
+      }, 3000);
+    } catch (err) {
+      setSyncStatus('error');
+      setSyncMessage(`Не удалось загрузить таблицу: ${err.message}. Использую кеш.`);
+    } finally {
+      setLoadingCatalog(false);
+    }
+  };
 
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(cart));
-  }, [cart]);
+    fetchCatalog();
+  }, []);
 
-  const showNotification = (message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 2500);
+  useEffect(() => {
+    localStorage.setItem('quantities', JSON.stringify(quantities));
+  }, [quantities]);
+
+  const products = catalog.map(p => ({
+    ...p,
+    quantity: quantities[p.id] || 0,
+  }));
+
+  const updateQuantity = (id, delta) => {
+    setQuantities(q => ({ ...q, [id]: Math.max(0, (q[id] || 0) + delta) }));
   };
 
-  const addToCart = () => {
-    if (quantity <= 0) return showNotification('Количество должно быть больше 0', 'error');
-    const existingItem = cart.find((item) => item.id === selectedProduct.id);
-    if (existingItem) {
-      setCart(cart.map((item) => item.id === selectedProduct.id ? { ...item, quantity: item.quantity + quantity } : item));
-    } else {
-      setCart([...cart, { ...selectedProduct, quantity }]);
-    }
-    showNotification(`Добавлено: ${selectedProduct.name}`, 'success');
-    setQuantity(1);
+  const setQuantity = (id, value) => {
+    setQuantities(q => ({ ...q, [id]: Math.max(0, isNaN(value) ? 0 : value) }));
   };
 
-  const removeFromCart = (id) => {
-    const item = cart.find((i) => i.id === id);
-    setCart(cart.filter((item) => item.id !== id));
-    showNotification(`Удалено: ${item?.name}`, 'error');
-  };
-
-  const updateQuantity = (id, newQuantity) => {
-    if (newQuantity <= 0) return removeFromCart(id);
-    setCart(cart.map((item) => (item.id === id ? { ...item, quantity: newQuantity } : item)));
-  };
-
-  const clearCart = () => {
-    if (cart.length === 0) return;
-    if (window.confirm('Очистить весь список?')) {
-      setCart([]);
-      showNotification('Список очищен', 'error');
+  const resetQuantities = () => {
+    if (window.confirm('Сбросить все количества?')) {
+      setQuantities({});
     }
   };
 
-  const totalSum = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalSum = products.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalItems = products.reduce((sum, item) => sum + item.quantity, 0);
+  const itemsInOrder = products.filter(item => item.quantity > 0);
 
   const generatePDF = () => {
-    if (cart.length === 0) return showNotification('Список пуст!', 'error');
+    if (itemsInOrder.length === 0) return;
     setIsGenerating(true);
 
     try {
-      const tableBody = cart.map((item, i) => [
-        i + 1,
-        item.name,
-        item.quantity,
-        `${item.price.toLocaleString()} ₽`,
-        `${(item.price * item.quantity).toLocaleString()} ₽`,
+      const tableBody = itemsInOrder.map((item, i) => [
+        { text: i + 1, alignment: 'center' },
+        { text: item.name, alignment: 'left' },
+        { text: item.quantity, alignment: 'right' },
+        { text: `${item.price.toLocaleString('ru-RU')} ₽`, alignment: 'right' },
+        { text: `${(item.price * item.quantity).toLocaleString('ru-RU')} ₽`, alignment: 'right' },
       ]);
 
       const docDefinition = {
-        defaultStyle: {
-          font: 'Roboto',
-          fontSize: 10,
-          color: '#334155'
-        },
+        defaultStyle: { font: 'Roboto', fontSize: 10, color: '#334155' },
         content: [
-          {
-            text: 'ОТГРУЗКА',
-            fontSize: 18,
-            bold: true,
-            color: '#0f172a',
-            margin: [0, 0, 0, 8]
-          },
-          {
-            text: `Дата формирования: ${new Date().toLocaleDateString('ru-RU')}`,
-            fontSize: 10,
-            color: '#64748b',
-            margin: [0, 0, 0, 20]
-          },
+          { text: 'ОТГРУЗКА', fontSize: 18, bold: true, color: '#0f172a', margin: [0, 0, 0, 8] },
+          { text: `Дата формирования: ${new Date().toLocaleDateString('ru-RU')}`, fontSize: 10, color: '#64748b', margin: [0, 0, 0, 20] },
           {
             table: {
               headerRows: 1,
-              widths: [30, '*', 40, 50, 50],
+              widths: [30, '*', 50, 60, 70],
               body: [
                 [
-                  { text: '№', bold: true, color: '#0f172a' },
-                  { text: 'Наименование', bold: true, color: '#0f172a' },
-                  { text: 'Кол-во', bold: true, color: '#0f172a' },
+                  { text: '№', bold: true, color: '#0f172a', alignment: 'center' },
+                  { text: 'Наименование', bold: true, color: '#0f172a', alignment: 'left' },
+                  { text: 'Кол-во', bold: true, color: '#0f172a', alignment: 'right' },
                   { text: 'Цена', bold: true, color: '#0f172a', alignment: 'right' },
                   { text: 'Сумма', bold: true, color: '#0f172a', alignment: 'right' }
                 ],
@@ -137,11 +223,11 @@ export default function App() {
               ]
             },
             layout: {
-              hLineWidth: (i, node) => (i === 1 ? 0.5 : 0),
+              hLineWidth: (i) => (i === 1 ? 0.5 : 0),
               vLineWidth: () => 0,
               hLineColor: (i) => (i === 1 ? '#0f172a' : '#ffffff'),
               paddingLeft: () => 0,
-              paddingRight: () => 0,
+              paddingRight: () => 8,
               paddingTop: () => 4,
               paddingBottom: () => 4
             }
@@ -149,169 +235,168 @@ export default function App() {
           {
             columns: [
               { text: 'ИТОГО:', fontSize: 12, bold: true, color: '#0f172a', margin: [0, 15, 0, 0] },
-              {
-                text: `${totalSum.toLocaleString()} ₽`,
-                fontSize: 14,
-                bold: true,
-                color: '#2563eb',
-                alignment: 'right',
-                margin: [0, 15, 0, 0]
-              }
+              { text: `${totalSum.toLocaleString('ru-RU')} ₽`, fontSize: 14, bold: true, color: '#0f172a', alignment: 'right', margin: [0, 15, 0, 0] }
             ]
           }
         ]
       };
 
       pdfMake.createPdf(docDefinition).download(`Отгрузка_${new Date().toISOString().slice(0, 10)}.pdf`);
-      showNotification('PDF успешно создан!', 'success');
     } catch (error) {
       console.error('PDF Error:', error);
-      showNotification('Ошибка при создании PDF', 'error');
     } finally {
       setIsGenerating(false);
     }
   };
 
+  const lastSyncText = lastSync
+    ? new Date(lastSync).toLocaleString('ru-RU')
+    : 'ещё не синхронизировано';
+
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6">
-      <div className="max-w-3xl mx-auto space-y-6">
-        {notification && (
-          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 animate-slide-down">
-            <div className={`px-5 py-3 rounded-xl shadow-lg text-sm font-semibold flex items-center gap-2 border ${
-              notification.type === 'error' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'
-            }`}>
-              <span>{notification.type === 'error' ? '️' : '✅'}</span>
-              {notification.message}
-            </div>
-          </div>
-        )}
+    // h-screen вместо min-h-screen — фиксируем высоту вьюпорта
+    <div className="h-screen bg-slate-50 flex flex-col overflow-hidden">
+      <div className="max-w-3xl mx-auto w-full flex-1 flex flex-col min-h-0 px-4 sm:px-6 py-6">
 
-        {/* Форма добавления */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200/60">
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Добавить позицию</h2>
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-            <div className="md:col-span-7">
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">Товар</label>
-              <select
-                value={selectedProduct.id}
-                onChange={(e) => setSelectedProduct(availableProducts.find((p) => p.id === Number(e.target.value)))}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all cursor-pointer hover:bg-slate-100"
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 flex flex-col flex-1 min-h-0 overflow-hidden">
+
+          {/* Шапка */}
+          <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={fetchCatalog}
+                disabled={loadingCatalog}
+                className="text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                title="Перечитать таблицу"
               >
-                {availableProducts.map((product) => (
-                  <option key={product.id} value={product.id}>{product.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">Кол-во</label>
-              <input
-                type="number"
-                min="1"
-                value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-center hover:bg-slate-100"
-              />
-            </div>
-            <div className="md:col-span-3 flex items-end">
-              <button onClick={addToCart} className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm shadow-blue-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0">
-                Добавить
-              </button>
-            </div>
-          </div>
-          <div className="mt-3 text-right">
-            <span className="text-xs text-slate-400">Цена за ед.: </span>
-            <span className="text-sm font-semibold text-slate-700">{selectedProduct.price.toLocaleString()} ₽</span>
-          </div>
-        </div>
-
-        {/* Корзина */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
-          <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Состав заказа</h2>
-            {cart.length > 0 && (
-              <button onClick={clearCart} className="text-xs font-medium text-red-500 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors">
-                Очистить всё
-              </button>
-            )}
-          </div>
-
-          {cart.length === 0 ? (
-            <div className="p-12 text-center animate-fade-in">
-              <div className="relative mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-slate-50 ring-1 ring-slate-100">
-                <div className="absolute inset-0 rounded-full bg-blue-500/5 animate-pulse" />
-                <svg className="relative h-10 w-10 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                <svg className={`w-3.5 h-3.5 ${loadingCatalog ? 'animate-spin' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                  <path d="M21 3v5h-5"/>
+                  <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/>
+                  <path d="M8 16H3v5"/>
                 </svg>
-              </div>
-              <h3 className="text-lg font-semibold text-slate-800">Список отгрузки пуст</h3>
-              <p className="mt-2 text-sm text-slate-500 max-w-xs mx-auto leading-relaxed">
-                Добавьте товары из каталога выше, чтобы сформировать документ и скачать PDF-файл
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="max-h-80 overflow-y-auto custom-scrollbar divide-y divide-slate-100">
-                {cart.map((item) => (
-                  <div key={item.id} className="p-4 hover:bg-slate-50/80 transition-colors group animate-fade-in">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-medium text-slate-800 truncate">{item.name}</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">{item.price.toLocaleString()} ₽ / шт.</p>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
-                          <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-7 h-7 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-600 hover:text-blue-600 transition-colors text-sm font-bold">−</button>
-                          <span className="w-8 text-center text-sm font-semibold text-slate-800">{item.quantity}</span>
-                          <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-7 h-7 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-600 hover:text-blue-600 transition-colors text-sm font-bold">+</button>
-                        </div>
-                        <span className="text-sm font-bold text-slate-800 min-w-[90px] text-right">{(item.price * item.quantity).toLocaleString()} ₽</span>
-                        <button onClick={() => removeFromCart(item.id)} className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all opacity-0 group-hover:opacity-100" title="Удалить">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                <span className="hidden sm:inline">{loadingCatalog ? 'Загрузка…' : 'Обновить'}</span>
+              </button>
 
-              <div className="p-5 bg-slate-50 border-t border-slate-200">
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                  <div className="text-center sm:text-left">
-                    <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Итого к оплате</p>
-                    <p className="text-3xl font-bold text-slate-800 mt-1 tracking-tight">{totalSum.toLocaleString()} ₽</p>
+              {totalItems > 0 && (
+                <button
+                  onClick={resetQuantities}
+                  className="text-xs font-medium text-red-500 hover:text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  Сбросить
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Статус синхронизации */}
+          <div className={`px-5 py-2 border-b text-[11px] flex items-center gap-2 flex-shrink-0 ${
+            syncStatus === 'success' ? 'bg-green-50 border-green-100' :
+            syncStatus === 'error' ? 'bg-amber-50 border-amber-100' :
+            'bg-blue-50/50 border-blue-100'
+          }`}>
+            {syncStatus === 'success' ? (
+              <svg className="w-3 h-3 text-green-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            ) : syncStatus === 'error' ? (
+              <svg className="w-3 h-3 text-amber-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            ) : (
+              <svg className="w-3 h-3 text-blue-400 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            )}
+            <span className={
+              syncStatus === 'success' ? 'text-green-700' :
+              syncStatus === 'error' ? 'text-amber-700' : 'text-slate-500'
+            }>
+              {syncMessage || `Источник: Google Таблица • Последнее обновление: ${lastSyncText}`}
+            </span>
+          </div>
+
+          {/* Список товаров — flex-1 + overflow-y-auto = всегда есть внутренний скролл */}
+          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar divide-y divide-slate-100">
+            {products.map((item) => (
+              <div key={item.id} className="p-4 hover:bg-slate-50/80 transition-colors group">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-medium text-slate-800">{item.name}</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">{item.price.toLocaleString('ru-RU')} ₽ / шт.</p>
                   </div>
-                  <button
-                    onClick={generatePDF}
-                    disabled={isGenerating}
-                    className={`w-full sm:w-auto px-6 py-3 rounded-xl text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-2 ${
-                      isGenerating ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-slate-900 text-white hover:bg-slate-800 hover:shadow-md hover:-translate-y-0.5'
-                    }`}
-                  >
-                    {isGenerating ? (
-                      <>
-                        <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Генерация...
-                      </>
-                    ) : (
-                      <>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        Скачать PDF
-                      </>
-                    )}
-                  </button>
+
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+                      <button
+                        onClick={() => updateQuantity(item.id, -1)}
+                        disabled={item.quantity === 0}
+                        className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-600 hover:text-blue-600 transition-colors text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed"
+                      >−</button>
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.quantity}
+                        onChange={(e) => setQuantity(item.id, Number(e.target.value))}
+                        className="w-12 text-center text-sm font-semibold text-slate-800 bg-transparent border-none focus:outline-none focus:ring-0"
+                      />
+                      <button
+                        onClick={() => updateQuantity(item.id, 1)}
+                        className="w-8 h-8 flex items-center justify-center bg-white rounded-md shadow-sm text-slate-600 hover:text-blue-600 transition-colors text-sm font-bold"
+                      >+</button>
+                    </div>
+
+                    <span className={`text-sm font-bold min-w-[90px] text-right ${item.quantity > 0 ? 'text-slate-800' : 'text-slate-400'}`}>
+                      {(item.price * item.quantity).toLocaleString('ru-RU')} ₽
+                    </span>
+                  </div>
                 </div>
               </div>
-            </>
-          )}
-        </div>
+            ))}
+          </div>
 
-        <p className="text-center text-xs text-slate-400 flex items-center justify-center gap-1.5">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-          Данные автоматически сохраняются в браузере
-        </p>
+          {/* Итого + PDF — sticky bottom, всегда прижат к низу */}
+          <div className="flex-shrink-0 p-5 bg-slate-50 border-t border-slate-200 shadow-[0_-4px_12px_-4px_rgba(0,0,0,0.06)]">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="text-center sm:text-left">
+                <p className="text-xs text-slate-400 uppercase tracking-wider font-bold">Итого</p>
+                <p className="text-3xl font-bold text-slate-800 mt-1 tracking-tight">{totalSum.toLocaleString('ru-RU')} ₽</p>
+                <p className="text-xs text-slate-500 mt-1">{totalItems} шт.</p>
+              </div>
+              <button
+                onClick={generatePDF}
+                disabled={isGenerating || itemsInOrder.length === 0}
+                className={`w-full sm:w-auto px-6 py-3 rounded-xl text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-2 ${
+                  isGenerating || itemsInOrder.length === 0
+                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    : 'bg-slate-900 text-white hover:bg-slate-800 hover:shadow-md hover:-translate-y-0.5'
+                }`}
+              >
+                {isGenerating ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Генерация...
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                      <polyline points="7 10 12 15 17 10"/>
+                      <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Скачать PDF
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   );
